@@ -20,9 +20,9 @@ pub enum Exchanges {
 }
 
 pub struct AggregatedBook {
-  asks: BTreeMap<Decimal, Decimal>,
-  bids: BTreeMap<Decimal, Decimal>,
-  spread: Decimal,
+  pub asks: BTreeMap<Decimal, Decimal>,
+  pub bids: BTreeMap<Decimal, Decimal>,
+  pub spread: Decimal,
 }
 
 impl AggregatedBook {
@@ -32,6 +32,9 @@ impl AggregatedBook {
       bids: BTreeMap::new(),
       spread: dec!(0),
     }
+  }
+  pub fn get_levels(&self, level: usize) -> (Vec<(&Decimal, &Decimal)>, Vec<(&Decimal, &Decimal)>) {
+    (self.bids.iter().take(level).collect(), self.asks.iter().take(level).collect()) 
   } 
   pub fn update(&mut self, orderbook: OrderBook) {
      for (price, volume) in orderbook.asks.into_iter() {
