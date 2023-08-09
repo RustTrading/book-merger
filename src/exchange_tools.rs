@@ -37,21 +37,21 @@ impl AggregatedBook {
     (self.bids.iter().take(level).collect(), self.asks.iter().take(level).collect()) 
   } 
   pub fn update(&mut self, orderbook: OrderBook) {
-     for (price, volume) in orderbook.asks.into_iter() {
+    for (price, volume) in orderbook.asks.into_iter() {
       let mut aggregated = volume;  
       if let Some(value) = self.asks.get(&price) {
-          aggregated += value;
-        } 
-        self.asks.insert(price, aggregated);
-     }
-     for (price, volume) in orderbook.bids.into_iter() {
+        aggregated += value;
+      } 
+      self.asks.insert(price, aggregated);
+    }
+    for (price, volume) in orderbook.bids.into_iter() {
       let mut aggregated = volume;  
-      if let Some(value) = self.asks.get(&price) {
-          aggregated += value;
-        } 
-        self.bids.insert(price, aggregated);
-     }
-     self.spread = self.asks.first_key_value().unwrap().0 - self.bids.last_key_value().unwrap().0;
+      if let Some(value) = self.bids.get(&price) {
+        aggregated += value;
+      } 
+      self.bids.insert(price, aggregated);
+    }
+    self.spread = self.asks.first_key_value().unwrap().0 - self.bids.last_key_value().unwrap().0;
   }
 }
 
