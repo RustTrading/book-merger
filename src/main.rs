@@ -6,7 +6,7 @@ use url::Url;
 mod exchange_tools;
 mod bitstamp;
 
-use exchange_tools::{BINANCE_WSS_ETHBTC_20, BITSTAMP_WSS, Exchanges};
+use exchange_tools::{BINANCE_WSS_ETHBTC_20, BITSTAMP_WSS, Exchanges, parse_book};
 use serde_json::json;
 
 async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>) -> Result<(), Error> {
@@ -24,7 +24,7 @@ async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>) -> R
     };
   }  
   let read_future = input_stream.for_each(|message| async {
-    println!("{}, {:?}", exchange_stream, message.unwrap().to_text());
+    parse_book(exchange, message.unwrap());
   });
   read_future.await;
   Ok::<(), Error>(())
