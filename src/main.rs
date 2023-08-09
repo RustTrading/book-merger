@@ -1,25 +1,13 @@
 use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungstenite::error::Error};
-use serde_json::json;
 use futures::join;
 use url::Url;
 
-const BITSTAMP_WSS: &str = "wss://ws.bitstamp.net";
-const BINANCE_WSS_ETHBTC_20: &str = "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms";
+mod exchange_tools;
+mod bitstamp;
 
-enum Exchanges {
-  Bitstamp(&'static str),
-  Binance(&'static str),
-}
-
-impl Exchanges {
-  fn value(self) -> &'static str {
-    match self {
-      Self::Bitstamp(value) => value,
-      Self::Binance(value) => value,
-    }
-  }
-}
+use exchange_tools::{BINANCE_WSS_ETHBTC_20, BITSTAMP_WSS, Exchanges};
+use serde_json::json;
 
 async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>) -> Result<(), Error> {
   let exchange_stream = exchange.value();
@@ -44,18 +32,19 @@ async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>) -> R
 
 #[tokio::main]
 async fn main() -> Result<(), Error>{
-  let subscribe_ethbtc = json!({
+  let subscribe_ethbtc: String = json!({
     "event": "bts:subscribe",
     "data": {
       "channel": "order_book_ethbtc"
     }
   }
   ).to_string();
-  let _unsubscribe_ethbtc = json!({
+
+  let _unsubscribe_eth_btc: String = json!({
     "event": "bts:unsubscribe",
     "data": {
-      "channel": "order_book_ethbtc"
-    }
+    "channel": "order_book_ethbtc"
+  }
   }
   ).to_string();
   let _= join![
