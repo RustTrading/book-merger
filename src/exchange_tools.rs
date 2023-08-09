@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use tokio_tungstenite::tungstenite::protocol::Message;
+use rust_decimal::Decimal;
 
 pub const BITSTAMP_WSS: &str = "wss://ws.bitstamp.net";
 pub const BINANCE_WSS_ETHBTC_20: &str = "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms";
@@ -21,19 +22,42 @@ impl Exchanges {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OrderBook {
-  bids: Vec<(f64, f64)>,
-  asks: Vec<(f64, f64)>,
+  pub bids: Vec<(Decimal, Decimal)>,
+  pub asks: Vec<(Decimal, Decimal)>,
 }
 
-pub fn parse_book(exchange: Exchanges, message: Message) -> OrderBook {
+use crate::{binance, bitstamp};
+
+pub fn parse_book(exchange: Exchanges, message: Message) -> Result<(Decimal, OrderBook), serde_json::Error> {
+ let message_str =  message.to_text().unwrap();
   match exchange {
     Exchanges::Bitstamp(_) => {
-      println!("{:?}, {:?}", exchange, message.to_text());
+      let order_book: Result<bitstamp::Event,_> = serde_json::from_str(message_str);
+      match order_book {
+        Ok(val) => { 
+          Ok((val.data.timestamp, OrderBook {
+            asks: val.data.asks,
+            bids: val.data.bids,
+          }))
+        },
+        Err(e) => { 
+          Err(e)
+        }
+      }
     },
     Exchanges::Binance(_) => {
-
+      let order_book: Result<binance::OrderBook, _> = serde_json::from_str(message_str);
+      match order_book {
+        Ok(val) => { 
+          Ok((val.lastUpdateId, OrderBook {
+            asks: val.asks,
+            bids: val.bids,
+          }))
+        },
+        Err(e) =>  { 
+          Err(e)
+        },
+      }
     }
-  };
-  
-  OrderBook { bids: Vec::new(), asks: Vec::new() }
+  }
 }

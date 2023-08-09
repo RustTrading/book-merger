@@ -1,18 +1,19 @@
 
+use rust_decimal::Decimal;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OrderBook
 {
-  timestamp: String,
-  microtimestamp: String,
-  bids: Vec<(f64, f64)>,
-  asks: Vec<(f64, f64)>,
+  pub timestamp: Decimal,
+  pub microtimestamp: Decimal,
+  pub bids: Vec<(Decimal, Decimal)>,
+  pub asks: Vec<(Decimal, Decimal)>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Message {
-  event: String,
-  channel: String,
-  data:  OrderBook,
+pub struct Event {
+  pub event: String,
+  pub channel: String,
+  pub data: OrderBook,
 }

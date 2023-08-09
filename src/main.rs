@@ -21,7 +21,9 @@ async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>) -> R
     };
   }  
   let read_future = input_stream.for_each(|message| async {
-    parse_book(exchange, message.unwrap());
+    if let Ok((update_id, order_book)) = parse_book(exchange, message.unwrap()) {
+      println!("{:?}, update_id: {:?}, order_book: {:?}", exchange, update_id, order_book);
+    }
   });
   read_future.await;
   Ok::<(), Error>(())
