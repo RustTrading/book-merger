@@ -3,10 +3,7 @@ use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungsteni
 use futures::join;
 use url::Url;
 
-mod exchange_tools;
-mod bitstamp;
-
-use exchange_tools::{BINANCE_WSS_ETHBTC_20, BITSTAMP_WSS, Exchanges, parse_book};
+use book_merger::exchange_tools::{BINANCE_WSS_ETHBTC_20, BITSTAMP_WSS, Exchanges, parse_book};
 use serde_json::json;
 
 async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>) -> Result<(), Error> {

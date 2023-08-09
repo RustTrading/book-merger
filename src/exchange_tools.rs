@@ -4,7 +4,6 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 pub const BITSTAMP_WSS: &str = "wss://ws.bitstamp.net";
 pub const BINANCE_WSS_ETHBTC_20: &str = "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms";
 
-
 #[derive(Debug, Clone, Copy)]
 pub enum Exchanges {
   Bitstamp(&'static str),
@@ -27,6 +26,14 @@ pub struct OrderBook {
 }
 
 pub fn parse_book(exchange: Exchanges, message: Message) -> OrderBook {
-  println!("{:?}, {:?}", exchange, message.to_text());
+  match exchange {
+    Exchanges::Bitstamp(_) => {
+      println!("{:?}, {:?}", exchange, message.to_text());
+    },
+    Exchanges::Binance(_) => {
+
+    }
+  };
+  
   OrderBook { bids: Vec::new(), asks: Vec::new() }
 }
