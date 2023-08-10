@@ -2,15 +2,18 @@ use serde::{Serialize, Deserialize};
 use tokio_tungstenite::tungstenite::protocol::Message;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 pub const BITSTAMP_WSS: &str = "wss://ws.bitstamp.net";
 pub const BINANCE_WSS_ETHBTC_20: &str = "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms";
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OrderBook {
-  pub bids: Vec<(Decimal, Decimal)>,
-  pub asks: Vec<(Decimal, Decimal)>,
+  pub exchange: String,
+  pub bids: Vec<Level>,
+  pub asks: Vec<Level>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -19,9 +22,28 @@ pub enum Exchanges {
   Binance(&'static str),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Level {
+  pub exchange: String,
+  pub price: Decimal,
+  pub amount: Decimal,
+}
+#[derive(Debug, EnumIter, Clone, Copy)]
+pub enum OrderSide {
+  Ask,
+  Bid,
+}
+
+#[derive(Debug)]
+pub struct Summary {
+  asks: Vec<Level>,
+  bids: Vec<Level>,
+  spread: Decimal,
+}
+
 pub struct AggregatedBook {
-  pub asks: BTreeMap<Decimal, Decimal>,
-  pub bids: BTreeMap<Decimal, Decimal>,
+  pub asks: BTreeMap<Decimal, HashMap<String, Decimal>>,
+  pub bids: BTreeMap<Decimal, HashMap<String, Decimal>>,
   pub spread: Decimal,
 }
 
@@ -33,23 +55,49 @@ impl AggregatedBook {
       spread: dec!(0),
     }
   }
-  pub fn get_levels(&self, level: usize) -> (Vec<(&Decimal, &Decimal)>, Vec<(&Decimal, &Decimal)>) {
-    (self.bids.iter().take(level).collect(), self.asks.iter().take(level).collect()) 
+
+  pub fn get_levels(&self, level_num: usize) -> Summary {
+    let bids = self.bids.iter()
+    .map(|val| val.1.iter()
+    .map(|val2| Level { exchange: val2.0.clone(), price: *val.0, amount: *val2.1 }).collect::<Vec<Level>>())
+    .flatten()
+    .take(level_num)
+    .collect();
+    let asks = self.bids.iter()
+    .map(|val| val.1.iter()
+    .map(|val2| Level { exchange: val2.0.clone(), price: *val.0, amount: *val2.1 })
+    .collect::<Vec<Level>>())
+    .flatten()
+    .take(level_num)
+    .collect();
+    Summary { asks, bids, spread: self.spread }
   } 
-  pub fn update(&mut self, orderbook: OrderBook) {
-    for (price, volume) in orderbook.asks.into_iter() {
-      let mut aggregated = volume;  
-      if let Some(value) = self.asks.get(&price) {
-        aggregated += value;
-      } 
-      self.asks.insert(price, aggregated);
+
+  pub fn insert_level(&mut self, order_side: OrderSide, level: Level) {
+    let storage = match order_side {
+        OrderSide::Ask => {
+          &mut self.asks
+        },
+        OrderSide::Bid => {
+          &mut self.bids
+        }
+    };
+    if !storage.contains_key(&level.price) {
+      storage.insert(level.price, HashMap::new());
     }
-    for (price, volume) in orderbook.bids.into_iter() {
-      let mut aggregated = volume;  
-      if let Some(value) = self.bids.get(&price) {
-        aggregated += value;
-      } 
-      self.bids.insert(price, aggregated);
+    if let Some(amount_map)= storage.get_mut(&level.price) {
+      amount_map.insert(level.exchange, level.amount);
+    }
+  }
+  pub fn update(&mut self, orderbook: OrderBook) {
+    for side in OrderSide::iter() { 
+      let storage = match side {
+        OrderSide::Ask => &orderbook.asks,
+        OrderSide::Bid => &orderbook.bids
+      };
+      for level in storage.into_iter() {
+        self.insert_level(side, level.clone());
+      }
     }
     self.spread = self.asks.first_key_value().unwrap().0 - self.bids.last_key_value().unwrap().0;
   }
@@ -65,19 +113,29 @@ impl Exchanges {
   }
 }
 
+impl ToString for Exchanges {
+  fn to_string(&self) -> String {
+    match self {
+      Self::Binance(_) => String::from("binance"),
+      Self::Bitstamp(_) => String::from("bitstamp"),
+    }
+  }
+}
+
 use crate::{binance, bitstamp};
 
-pub fn parse_book(exchange: Exchanges, message: Message) -> Result<(Decimal, OrderBook), serde_json::Error> {
+pub fn parse_book(exchange: Exchanges, message: Message) -> Result<OrderBook, serde_json::Error> {
  let message_str =  message.to_text().unwrap();
   match exchange {
     Exchanges::Bitstamp(_) => {
       let order_book: Result<bitstamp::Event,_> = serde_json::from_str(message_str);
       match order_book {
         Ok(val) => { 
-          Ok((val.data.timestamp, OrderBook {
-            asks: val.data.asks,
-            bids: val.data.bids,
-          }))
+          Ok(OrderBook {
+            exchange: String::from("bitstamp"),
+            asks: val.data.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
+            bids: val.data.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
+          })
         },
         Err(e) => { 
           Err(e)
@@ -88,10 +146,11 @@ pub fn parse_book(exchange: Exchanges, message: Message) -> Result<(Decimal, Ord
       let order_book: Result<binance::OrderBook, _> = serde_json::from_str(message_str);
       match order_book {
         Ok(val) => { 
-          Ok((val.lastUpdateId, OrderBook {
-            asks: val.asks,
-            bids: val.bids,
-          }))
+          Ok(OrderBook {
+            exchange: String::from("binance"),
+            asks: val.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
+            bids: val.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
+          })
         },
         Err(e) =>  { 
           Err(e)

@@ -3,8 +3,7 @@ use rust_decimal::Decimal;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OrderBook
-{
+pub struct OrderBook {
   pub timestamp: Decimal,
   pub microtimestamp: Decimal,
   pub bids: Vec<(Decimal, Decimal)>,

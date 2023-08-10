@@ -1,5 +1,4 @@
 use futures_util::{StreamExt, SinkExt};
-use rust_decimal::Decimal;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungstenite::error::Error};
 use futures::join;
 use tokio::sync::mpsc;
@@ -23,7 +22,7 @@ async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>, tx :
     };
   }  
   let read_future = input_stream.for_each(|message| async {
-    if let Ok((_, order_book)) = parse_book(exchange, message.unwrap()) {
+    if let Ok(order_book) = parse_book(exchange, message.unwrap()) {
       let _ = tx.send(order_book).await;
       //println!("{:?}, update_id: {:?}, order_book: {:?}", exchange, update_id, order_book);
     }
@@ -58,8 +57,8 @@ async fn main() -> Result<(), Error>{
     tokio::spawn(async move { 
       while let Some(res) = rx.recv().await {
         aggregated.update(res);
-        let (bids, asks) = aggregated.get_levels(2);
-        println!("spread: {} bids: {:?} asks: {:?}", aggregated.spread, bids, asks);
+        let summary = aggregated.get_levels(2);
+        println!("{:?}", summary);
       }
     }
   )
