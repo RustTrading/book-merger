@@ -63,7 +63,7 @@ impl AggregatedBook {
     .flatten()
     .take(level_num)
     .collect();
-    let asks = self.bids.iter()
+    let asks = self.asks.iter()
     .map(|val| val.1.iter()
     .map(|val2| Level { exchange: val2.0.clone(), price: *val.0, amount: *val2.1 })
     .collect::<Vec<Level>>())
@@ -148,8 +148,8 @@ pub fn parse_book(exchange: Exchanges, message: Message) -> Result<OrderBook, se
         Ok(val) => { 
           Ok(OrderBook {
             exchange: String::from("binance"),
-            asks: val.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
-            bids: val.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
+            asks: val.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("binance"), price, amount}).collect(),
+            bids: val.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("binance"), price, amount}).collect(),
           })
         },
         Err(e) =>  { 
