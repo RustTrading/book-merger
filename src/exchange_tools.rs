@@ -36,9 +36,9 @@ pub enum OrderSide {
 
 #[derive(Debug)]
 pub struct Summary {
-  asks: Vec<Level>,
-  bids: Vec<Level>,
-  spread: Decimal,
+  pub asks: Vec<Level>,
+  pub bids: Vec<Level>,
+  pub spread: Decimal,
 }
 
 pub struct AggregatedBook {
