@@ -9,12 +9,6 @@ pub enum Error {
   BadAddr(std::net::AddrParseError),
 }
 
-#[derive(Debug)]
-pub enum ExchangeErr {
-  Bitstamp(Error),
-  Binance(Error),
-}
-
 impl From<tungstenite::Error> for Error {
   fn from(e: tungstenite::Error) -> Self {
     Self::BadConnection(e)

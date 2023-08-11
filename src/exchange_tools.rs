@@ -7,7 +7,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 pub const BITSTAMP_WSS: &str = "wss://ws.bitstamp.net";
-pub const BINANCE_WSS_ETHBTC_20: &str = "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms";
+pub const BINANCE_WSS: &str = "wss://stream.binance.com:9443/ws/{}@depth20@100ms";
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OrderBook {
@@ -16,10 +16,10 @@ pub struct OrderBook {
   pub asks: Vec<Level>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Exchanges {
-  Bitstamp(&'static str),
-  Binance(&'static str),
+  Bitstamp(String),
+  Binance(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +106,7 @@ impl AggregatedBook {
 
 
 impl Exchanges {
-  pub fn value(self) -> &'static str {
+  pub fn value(self) -> String {
     match self {
       Self::Bitstamp(value) => value,
       Self::Binance(value) => value,
