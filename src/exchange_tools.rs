@@ -61,6 +61,7 @@ impl AggregatedBook {
     .map(|val| val.1.iter()
     .map(|val2| Level { exchange: val2.0.clone(), price: *val.0, amount: *val2.1 }).collect::<Vec<Level>>())
     .flatten()
+    .rev()
     .take(level_num)
     .collect();
     let asks = self.asks.iter()
