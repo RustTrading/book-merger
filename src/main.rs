@@ -89,10 +89,10 @@ async fn main() -> Result<(), Error>{
     }),
     tokio::spawn(async move { 
       let addr = "[::1]:50051".parse().unwrap();
-      let greeter = BookStreamer::default();
+      let book_streamer = BookStreamer::default();
       println!("Server listening on {}", addr);
-      Server::builder()
-          .add_service(OrderbookAggregatorServer::new(greeter))
+      let _= Server::builder()
+          .add_service(OrderbookAggregatorServer::new(book_streamer))
           .serve(addr)
           .await;
     })
