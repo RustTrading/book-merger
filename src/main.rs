@@ -20,13 +20,13 @@ async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>, tx :
   let exchange_stream = exchange.value();
   let url = Url::parse(exchange_stream).expect("bad url string");
   let (ws_stream, _) = connect_async(url).await?;
-  println!("connected");
+  println!("connected {:?}", exchange.to_owned());
   let (mut out_stream, input_stream) = ws_stream.split();
   if let Some(message) = subscriber {
     println!("subscribing...");
     match out_stream.send(Message::Text(message))
     .await {
-      Ok(res) => println!("{:?}", res),
+      Ok(_) => println!("ok"),
       Err(e) => println!("{:?}", e)
     };
   }  
