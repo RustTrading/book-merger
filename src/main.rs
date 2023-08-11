@@ -1,11 +1,12 @@
 use futures_util::{StreamExt, SinkExt};
+use proto::{Empty, Summary};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungstenite::error::Error};
 use futures::join;
 use tokio::sync::mpsc;
 use url::Url;
 use tonic::{transport::Server, Request, Response, Status};
-use crate::proto::{HelloReply, HelloRequest};
-use crate::proto::greeter_server::{Greeter, GreeterServer};
+use crate::proto::*;
+use crate::proto::orderbook_aggregator_server::{OrderbookAggregatorServer, OrderbookAggregator};
 use book_merger::exchange_tools::{BINANCE_WSS_ETHBTC_20, BITSTAMP_WSS, Exchanges, parse_book, AggregatedBook, OrderBook};
 use serde_json::json;
 
@@ -38,19 +39,21 @@ async fn connect_exchange(exchange: Exchanges, subscriber : Option<String>, tx :
 }
 
 #[derive(Default)]
-pub struct MyGreeter {}
+pub struct BookStreamer {}
 
 #[tonic::async_trait]
-impl Greeter for MyGreeter {
-    async fn say_hello(
+impl OrderbookAggregator for BookStreamer {
+    async fn book_summary(
         &self,
-        request: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, Status> {
+        request: Request<proto::Empty>,
+    ) -> Result<Response<proto::Summary>, Status> {
         println!("Got a request from {:?}", request.remote_addr());
-        let reply = HelloReply {
-            message: format!("Hello {}!", request.into_inner().name),
-        };
-        Ok(Response::new(reply))
+        let sum = proto::Summary {
+          asks: vec![ Level { price: 10.0, amount: 20.0, exchange: String::from("test")}],
+          bids: vec![ Level { price: 9.0, amount: 20.0, exchange: String::from("test")}],
+          spread: 1.0,
+      };
+        Ok(Response::new(sum))
     }
 }
 
@@ -86,10 +89,10 @@ async fn main() -> Result<(), Error>{
     }),
     tokio::spawn(async move { 
       let addr = "[::1]:50051".parse().unwrap();
-      let greeter = MyGreeter::default();
-      println!("GreeterServer listening on {}", addr);
+      let greeter = BookStreamer::default();
+      println!("Server listening on {}", addr);
       Server::builder()
-          .add_service(GreeterServer::new(greeter))
+          .add_service(OrderbookAggregatorServer::new(greeter))
           .serve(addr)
           .await;
     })

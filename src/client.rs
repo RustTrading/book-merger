@@ -4,8 +4,8 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal_macros::dec;
 
-use crate::proto::greeter_client::GreeterClient;
-use crate::proto::HelloRequest;
+use crate::proto::orderbook_aggregator_client::OrderbookAggregatorClient;
+use crate::proto::{Summary, Level};
 
 mod proto {
   tonic::include_proto!("book_merger");
@@ -20,13 +20,11 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = GreeterClient::connect("http://[::1]:50051").await?;
+    let mut client = OrderbookAggregatorClient::connect("http://[::1]:50051").await?;
 
-    let request = tonic::Request::new(HelloRequest {
-        name: "Tonic".into(),
-    });
+    let request = tonic::Request::new(proto::Empty {});
 
-    let response = client.say_hello(request).await?;
+    let response = client.book_summary(request).await?;
 
     println!("RESPONSE={:?}", response);
 

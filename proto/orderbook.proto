@@ -1,42 +1,41 @@
-// syntax = "proto3";
-// package orderbook;
-
-//service OrderbookAggregator {
-  //rpc Check (Empty) returns (Summary);
-
-  //rpc BookSummary (Empty) returns (stream Summary);
-//}
-
-//message Empty {}
-
-//message Summary {
-  //double spread = 1;
-  //repeated Level bids = 2;
-  //repeated Level asks = 3;
-//}
-
-//message Level {
-  //string exchange = 1;
-  //double price = 2;
-  //double amount = 3;
-//}
-
 syntax = "proto3";
 
 package book_merger;
 
-// The greeting service definition.
-service Greeter {
-  // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+service OrderbookAggregator {
+  rpc BookSummary (Empty) returns (Summary);
 }
+
+message Empty {}
+
+message Summary {
+  double spread = 1;
+  repeated Level bids = 2;
+  repeated Level asks = 3;
+}
+
+message Level {
+  string exchange = 1;
+  double price = 2;
+  double amount = 3;
+}
+
+//syntax = "proto3";
+
+//package book_merger;
+
+// The greeting service definition.
+//service Greeter {
+  // Sends a greeting
+  //rpc SayHello (HelloRequest) returns (HelloReply) {}
+//}
 
 // The request message containing the user's name.
-message HelloRequest {
-  string name = 1;
-}
+//message HelloRequest {
+  //string name = 1;
+//}
 
 // The response message containing the greetings
-message HelloReply {
-  string message = 1;
-}
+//message HelloReply {
+  //string message = 1;
+//}
