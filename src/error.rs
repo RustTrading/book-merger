@@ -7,6 +7,8 @@ pub enum Error {
   IoError(std::io::Error),
   ServerError(tonic::transport::Error),
   BadAddr(std::net::AddrParseError),
+  JoinError(tokio::task::JoinError),
+  NotImplemented(),
 }
 
 impl From<tungstenite::Error> for Error {

@@ -17,7 +17,7 @@ pub struct OrderBook {
 }
 
 #[derive(Debug, Clone)]
-pub enum Exchanges {
+pub enum Exchange {
   Bitstamp(String),
   Binance(String),
 }
@@ -28,6 +28,7 @@ pub struct Level {
   pub price: Decimal,
   pub amount: Decimal,
 }
+
 #[derive(Debug, EnumIter, Clone, Copy)]
 pub enum OrderSide {
   Ask,
@@ -104,8 +105,7 @@ impl AggregatedBook {
   }
 }
 
-
-impl Exchanges {
+impl Exchange {
   pub fn value(self) -> String {
     match self {
       Self::Bitstamp(value) => value,
@@ -114,7 +114,7 @@ impl Exchanges {
   }
 }
 
-impl ToString for Exchanges {
+impl ToString for Exchange {
   fn to_string(&self) -> String {
     match self {
       Self::Binance(_) => String::from("binance"),
@@ -125,10 +125,10 @@ impl ToString for Exchanges {
 
 use crate::{binance, bitstamp};
 
-pub fn parse_book(exchange: Exchanges, message: Message) -> Result<OrderBook, serde_json::Error> {
+pub fn parse_book(exchange: Exchange, message: Message) -> Result<OrderBook, serde_json::Error> {
  let message_str =  message.to_text().unwrap();
   match exchange {
-    Exchanges::Bitstamp(_) => {
+    Exchange::Bitstamp(_) => {
       let order_book: Result<bitstamp::Event,_> = serde_json::from_str(message_str);
       match order_book {
         Ok(val) => { 
@@ -143,7 +143,7 @@ pub fn parse_book(exchange: Exchanges, message: Message) -> Result<OrderBook, se
         }
       }
     },
-    Exchanges::Binance(_) => {
+    Exchange::Binance(_) => {
       let order_book: Result<binance::OrderBook, _> = serde_json::from_str(message_str);
       match order_book {
         Ok(val) => { 
