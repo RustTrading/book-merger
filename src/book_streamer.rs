@@ -1,16 +1,13 @@
-
-use std::pin::Pin;
-use num_traits::cast::ToPrimitive;
-use futures::Stream;
-use tokio::sync::mpsc;
-use tonic::{transport::Server, Request, Response, Status};
-use futures::try_join;
-use proto::orderbook_aggregator_server::{OrderbookAggregatorServer, OrderbookAggregator};
-use crate::exchange_tools::{Exchange, Summary, Level};
+use crate::{AGGREGATOR, WATCHSTATE};
 use crate::connector::connect_exchange;
 use crate::client::error::Error;
-
-use crate::{AGGREGATOR, WATCHSTATE};
+use crate::exchange_tools::{Exchange, Summary, Level};
+use futures::{try_join, Stream};
+use std::pin::Pin;
+use tokio::sync::mpsc;
+use tonic::{transport::Server, Request, Response, Status};
+use num_traits::cast::ToPrimitive;
+use proto::orderbook_aggregator_server::{OrderbookAggregatorServer, OrderbookAggregator};
 
 mod proto {
   tonic::include_proto!("book_merger");

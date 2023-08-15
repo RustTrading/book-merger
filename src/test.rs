@@ -1,16 +1,11 @@
-use std::{
-  io::Error as IoError,
-  net::SocketAddr,
-};
-
 use async_stream::stream;
-use futures_util::pin_mut;
+use crate::binance::OrderBook;
+use crate::client::error::Error;
+use futures_util::{pin_mut, StreamExt, SinkExt};
 use itertools::Itertools;
 use rust_decimal_macros::dec;
 use rust_decimal::Decimal;
-use futures_util::{StreamExt, SinkExt};
-use crate::binance::OrderBook;
-
+use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 
 async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
@@ -39,7 +34,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
 }
 
 // addr i.e 127.0.0.1:8080
-pub async fn server(addr: String) -> Result<(), IoError> {
+pub async fn server(addr: String) -> Result<(), Error> {
   let try_socket = TcpListener::bind(&addr).await;
   let listener = try_socket.expect("Failed to bind");
   println!("Listening on: {}", addr);

@@ -1,8 +1,7 @@
-use tokio::sync::mpsc;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungstenite::error::Error};
 use crate::exchange_tools::{Exchange, parse_book, OrderBook};
 use futures_util::{StreamExt, SinkExt};
-
+use tokio::sync::mpsc;
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungstenite::error::Error};
 use url::Url;
 
 pub async fn connect_exchange(
