@@ -65,6 +65,7 @@ pub async fn grpc_client() -> Result<(), error::Error> {
   Ok::<(), error::Error>(())
 }
 
+#[allow(dead_code)]
 #[tokio::main]
 async fn main() -> Result<(), error::Error> {
   grpc_client().await
