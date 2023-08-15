@@ -8,7 +8,7 @@ use futures::try_join;
 use proto::orderbook_aggregator_server::{OrderbookAggregatorServer, OrderbookAggregator};
 use crate::exchange_tools::{Exchange, Summary, Level};
 use crate::connector::connect_exchange;
-use crate::error::Error;
+use crate::client::error::Error;
 
 use crate::{AGGREGATOR, WATCHSTATE};
 

@@ -11,6 +11,7 @@ pub async fn connect_exchange(
   tx: mpsc::Sender<OrderBook>) -> Result<(), Error> {
   let exchange_stream = exchange.clone().value();
   let url = Url::parse(&exchange_stream).expect("bad url string");
+  println!("connecting to {:?}", url);
   let (ws_stream, _) = connect_async(url).await?;
   println!("connected {:?}", exchange);
   let (mut out_stream, input_stream) = ws_stream.split();
@@ -23,6 +24,7 @@ pub async fn connect_exchange(
     };
   }  
   let read_future = input_stream.for_each(|message| async {
+    //println!("{:?}", message);
     if let Ok(order_book) = parse_book(exchange.clone(), message.unwrap()) {
       let _ = tx.send(order_book).await;
     }

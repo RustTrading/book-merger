@@ -2,8 +2,15 @@
 use book_merger::exchange_tools::{BINANCE_WSS, BITSTAMP_WSS, Exchange};
 use book_merger::book_streamer::BookStreamer;
 use serde_json::json;
-use book_merger::error::Error;
+use book_merger::client::error::Error;
 use clap::{Arg, App};
+
+async fn grpc_server(exchanges: Vec<(Exchange, Option<String>)>) -> Result<(), Error> {
+  let mut worker = BookStreamer { 
+    exchanges
+    };  
+    worker.run().await
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -34,11 +41,39 @@ async fn main() -> Result<(), Error> {
 
   let subscribe_ethbtc: String = frmt.replace("{}", currencies);
   let binance_wss_currency = BINANCE_WSS.replace("{}", currencies);
+  let exchanges = vec![
+    (Exchange::Binance(binance_wss_currency), None),
+    (Exchange::Bitstamp(BITSTAMP_WSS.to_owned()), Some(subscribe_ethbtc))];
+  grpc_server(exchanges).await
+}
 
-  let mut worker = BookStreamer { 
-    exchanges: vec![
-      (Exchange::Binance(binance_wss_currency), None),
-      (Exchange::Bitstamp(BITSTAMP_WSS.to_owned()), Some(subscribe_ethbtc))],
-    };  
-    worker.run().await
+#[cfg(test)]
+pub mod test {
+  use futures_util::try_join;
+  use book_merger::{client::error::Error, test::server, exchange_tools::Exchange, client::grpc_client};
+  use crate::grpc_server;
+  #[tokio::test(flavor = "multi_thread")] 
+    async fn mock_servers() -> Result<(), Error> {
+      let exchanges = vec![
+        (Exchange::Binance("ws://127.0.0.1:8080".to_owned()), None),
+        (Exchange::Other("ws://127.0.0.1:3030".to_owned()), None)
+      ];
+      match try_join!(
+        tokio::spawn(async move {
+           server("127.0.0.1:8080".to_owned()).await
+        }),
+        tokio::spawn(async move {
+          server("127.0.0.1:3030".to_owned()).await
+        }),
+        tokio::spawn(async move {
+          grpc_server(exchanges).await
+        }),
+        tokio::spawn(async move {
+          grpc_client().await
+        })
+    ) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(Error::JoinError(e))
+      } 
+    }
 }

@@ -1,7 +1,8 @@
 pub mod exchange_tools;
 pub mod book_streamer;
 pub mod connector;
-pub mod error;
+pub mod client;
+pub mod test;
 mod bitstamp;
 mod binance;
 

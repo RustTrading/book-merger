@@ -20,6 +20,7 @@ pub struct OrderBook {
 pub enum Exchange {
   Bitstamp(String),
   Binance(String),
+  Other(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +111,7 @@ impl Exchange {
     match self {
       Self::Bitstamp(value) => value,
       Self::Binance(value) => value,
+      Self::Other(value) => value
     }
   }
 }
@@ -119,6 +121,7 @@ impl ToString for Exchange {
     match self {
       Self::Binance(_) => String::from("binance"),
       Self::Bitstamp(_) => String::from("bitstamp"),
+      Self::Other(_) => String::from("other"),
     }
   }
 }
@@ -126,7 +129,8 @@ impl ToString for Exchange {
 use crate::{binance, bitstamp};
 
 pub fn parse_book(exchange: Exchange, message: Message) -> Result<OrderBook, serde_json::Error> {
- let message_str =  message.to_text().unwrap();
+  //println!("received message: {:?}", message);
+  let message_str =  message.to_text().unwrap();
   match exchange {
     Exchange::Bitstamp(_) => {
       let order_book: Result<bitstamp::Event,_> = serde_json::from_str(message_str);
@@ -151,6 +155,21 @@ pub fn parse_book(exchange: Exchange, message: Message) -> Result<OrderBook, ser
             exchange: String::from("binance"),
             asks: val.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("binance"), price, amount}).collect(),
             bids: val.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("binance"), price, amount}).collect(),
+          })
+        },
+        Err(e) =>  { 
+          Err(e)
+        },
+      }
+    },
+    Exchange::Other(_) => {
+      let order_book: Result<binance::OrderBook, _> = serde_json::from_str(message_str);
+      match order_book {
+        Ok(val) => { 
+          Ok(OrderBook {
+            exchange: String::from("other"),
+            asks: val.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("other"), price, amount}).collect(),
+            bids: val.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("other"), price, amount}).collect(),
           })
         },
         Err(e) =>  { 
