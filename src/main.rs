@@ -49,8 +49,7 @@ async fn main() -> Result<(), Error> {
 
 #[cfg(test)]
 pub mod test {
-  use futures_util::try_join;
-  use book_merger::{client::error::Error, test::server, exchange_tools::Exchange, client::grpc_client};
+  use book_merger::{test::server, exchange_tools::Exchange, client::grpc_client};
   use tokio::{select, time, time::Duration};
   use serde_json::json;
   use crate::grpc_server;
@@ -60,7 +59,7 @@ pub mod test {
         (Exchange::Binance("ws://127.0.0.1:8080".to_owned()), None),
         (Exchange::Other("ws://127.0.0.1:3030".to_owned()), None)
       ];
-      let sleep = time::sleep(Duration::from_millis(100000));
+      let sleep = time::sleep(Duration::from_millis(10000));
       tokio::pin!(sleep);
       select! {
       _  = tokio::spawn(async move {
@@ -71,19 +70,22 @@ pub mod test {
         }) => {}
         _  = tokio::spawn(async move {
           grpc_server(exchanges).await
-        }) => {}
+        }) => { }
         _  = tokio::spawn(async move {
           grpc_client().await
         }) => {}  
-        _ = &mut sleep => {
+        () = &mut sleep => {
           println!("timer elapsed");
         }
     }
   }
     #[tokio::test(flavor = "multi_thread")]
-    async fn client_server() -> Result<(), Error> {
-      match try_join!(
-        tokio::spawn(async move {
+    async fn client_server() {
+      let sleep = time::sleep(Duration::from_millis(10000));
+      tokio::pin!(sleep);
+      loop {
+      select! {
+        _ = tokio::spawn(async move {
           let subscribe_bitstamp: String = json!({
             "event": "bts:subscribe",
             "data": {
@@ -96,13 +98,15 @@ pub mod test {
             (Exchange::Binance(binance), None),
             (Exchange::Bitstamp(bitstamp), Some(subscribe_bitstamp))];
           grpc_server(exchanges).await
-        }),
-        tokio::spawn(async move {
+        }) => {}
+        _ = tokio::spawn(async move {
           grpc_client().await
-        })
-      ) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(Error::JoinError(e))
-      } 
+        }) => {}
+        () = &mut sleep => {
+          println!("timer elapsed");
+          break;
+        }
+      }
+     }
     }
 }
