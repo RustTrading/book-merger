@@ -1,5 +1,5 @@
 # book-merger
-Connects to Crypto Exchanges and merges order books to get metrics.
+Connects to Binance and Bitstamp Crypto Exchanges and merges order books to get metrics.
 By default it's ethbtc pair but by running:
 
 ./book-merger-server --currencies ltcbtc 
