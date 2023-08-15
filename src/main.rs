@@ -61,7 +61,7 @@ pub mod test {
       ];
       let sleep = time::sleep(Duration::from_millis(10000));
       tokio::pin!(sleep);
-      select! {
+      select!{
       _  = tokio::spawn(async move {
             server("127.0.0.1:8080".to_owned()).await
          }) => {}
@@ -83,8 +83,7 @@ pub mod test {
     async fn client_server() {
       let sleep = time::sleep(Duration::from_millis(10000));
       tokio::pin!(sleep);
-      loop {
-      select! {
+      select!{
         _ = tokio::spawn(async move {
           let subscribe_bitstamp: String = json!({
             "event": "bts:subscribe",
@@ -104,9 +103,7 @@ pub mod test {
         }) => {}
         () = &mut sleep => {
           println!("timer elapsed");
-          break;
         }
       }
-     }
     }
 }
