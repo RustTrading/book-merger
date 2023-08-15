@@ -18,7 +18,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
 
   let (mut outgoing, _incoming) = ws_stream.split();
   let out_stream = stream! {
-    for j in (0..100).cycle() {
+    for j in 0..100 {
       let msg = serde_json::to_string(&OrderBook { 
         lastUpdateId: dec!(1), 
             asks: (1..16).map(|i| (Decimal::from_str_exact(&(100.0 + i as f64).to_string()).unwrap(), Decimal::from(j*j))).collect_vec(),

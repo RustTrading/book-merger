@@ -24,8 +24,10 @@ pub async fn connect_exchange(
   }  
   let read_future = input_stream.for_each(|message| async {
     //println!("{:?}", message);
-    if let Ok(order_book) = parse_book(exchange.clone(), message.unwrap()) {
-      let _ = tx.send(order_book).await;
+    if let Ok(body) = message {
+      if let Ok(order_book) = parse_book(exchange.clone(), body) {
+        let _ = tx.send(order_book).await;
+      }
     }
   });
   read_future.await;

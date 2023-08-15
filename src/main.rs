@@ -51,27 +51,56 @@ async fn main() -> Result<(), Error> {
 pub mod test {
   use futures_util::try_join;
   use book_merger::{client::error::Error, test::server, exchange_tools::Exchange, client::grpc_client};
+  use tokio::{select, time, time::Duration};
+  use serde_json::json;
   use crate::grpc_server;
   #[tokio::test(flavor = "multi_thread")] 
-    async fn mock_servers() -> Result<(), Error> {
+    async fn mock_servers() {
       let exchanges = vec![
         (Exchange::Binance("ws://127.0.0.1:8080".to_owned()), None),
         (Exchange::Other("ws://127.0.0.1:3030".to_owned()), None)
       ];
+      let sleep = time::sleep(Duration::from_millis(100000));
+      tokio::pin!(sleep);
+      select! {
+      _  = tokio::spawn(async move {
+            server("127.0.0.1:8080".to_owned()).await
+         }) => {}
+      _ = tokio::spawn(async move {
+            server("127.0.0.1:3030".to_owned()).await
+        }) => {}
+        _  = tokio::spawn(async move {
+          grpc_server(exchanges).await
+        }) => {}
+        _  = tokio::spawn(async move {
+          grpc_client().await
+        }) => {}  
+        _ = &mut sleep => {
+          println!("timer elapsed");
+        }
+    }
+  }
+    #[tokio::test(flavor = "multi_thread")]
+    async fn client_server() -> Result<(), Error> {
       match try_join!(
         tokio::spawn(async move {
-           server("127.0.0.1:8080".to_owned()).await
-        }),
-        tokio::spawn(async move {
-          server("127.0.0.1:3030".to_owned()).await
-        }),
-        tokio::spawn(async move {
+          let subscribe_bitstamp: String = json!({
+            "event": "bts:subscribe",
+            "data": {
+              "channel": "order_book_ethbtc"
+            }
+          }).to_string();       
+          let bitstamp: String = "wss://ws.bitstamp.net".to_owned();
+          let binance: String = "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms".to_owned();
+          let exchanges = vec![
+            (Exchange::Binance(binance), None),
+            (Exchange::Bitstamp(bitstamp), Some(subscribe_bitstamp))];
           grpc_server(exchanges).await
         }),
         tokio::spawn(async move {
           grpc_client().await
         })
-    ) {
+      ) {
         Ok(_) => Ok(()),
         Err(e) => Err(Error::JoinError(e))
       } 
