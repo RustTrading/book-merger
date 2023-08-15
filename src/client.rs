@@ -50,6 +50,7 @@ pub mod error {
   }
 }
 
+#[allow(non_snake_case)]
 mod proto {
   tonic::include_proto!("book_merger");
 }

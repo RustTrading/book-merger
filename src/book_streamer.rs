@@ -9,9 +9,11 @@ use tonic::{transport::Server, Request, Response, Status};
 use num_traits::cast::ToPrimitive;
 use proto::orderbook_aggregator_server::{OrderbookAggregatorServer, OrderbookAggregator};
 
+#[allow(non_snake_case)]
 mod proto {
   tonic::include_proto!("book_merger");
 }
+
 #[derive(Default)]
 pub struct BookStreamerTonik {}
 
