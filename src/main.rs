@@ -6,10 +6,8 @@ use book_merger::client::error::Error;
 use clap::{Arg, App};
 
 async fn grpc_server(exchanges: Vec<(Exchange, Option<String>)>) -> Result<(), Error> {
-  let mut worker = BookStreamer { 
-    exchanges
-    };  
-    worker.run().await
+  let mut worker = BookStreamer::new(exchanges);
+  worker.run().await
 }
 
 #[tokio::main]

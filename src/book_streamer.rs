@@ -1,10 +1,10 @@
-use crate::{AGGREGATOR, WATCHSTATE};
 use crate::connector::connect_exchange;
 use crate::client::error::Error;
-use crate::exchange_tools::{Exchange, Summary, Level};
-use futures::{try_join, Stream};
-use std::pin::Pin;
-use tokio::sync::mpsc;
+use crate::exchange_tools::{AggregatedBook, Exchange, Summary, Level};
+use futures::try_join;
+use std::sync::Arc;
+use tokio::sync::{mpsc, RwLock, watch};
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server, Request, Response, Status};
 use num_traits::cast::ToPrimitive;
 use proto::orderbook_aggregator_server::{OrderbookAggregatorServer, OrderbookAggregator};
@@ -14,11 +14,23 @@ mod proto {
   tonic::include_proto!("book_merger");
 }
 
-#[derive(Default)]
-pub struct BookStreamerTonik {}
+pub struct BookStreamerTonik {
+  pub aggregator: Arc<RwLock<AggregatedBook>>,
+  pub watcher: Arc<RwLock<watch::Receiver<bool>>>,
+}
 
 pub struct BookStreamer {
   pub exchanges: Vec<(Exchange, Option<String>)>,
+  pub aggregator: Arc<RwLock<AggregatedBook>>
+}
+
+impl BookStreamer {
+  pub fn new(exchanges: Vec<(Exchange, Option<String>)>) -> Self {
+    Self {
+      exchanges,
+      aggregator: Arc::new(RwLock::new(AggregatedBook::new())),
+    }
+  }
 }
 
 fn get_prop_levels(levels: &Vec<Level>) -> Vec<proto::Level> {
@@ -43,21 +55,23 @@ impl From<Summary> for proto::Summary {
 
 #[tonic::async_trait]
 impl OrderbookAggregator for BookStreamerTonik {
-  type BookSummaryStream = Pin<Box<dyn Stream<Item = Result<proto::Summary, Status>> + Send + 'static>>;
+  type BookSummaryStream = ReceiverStream<Result<proto::Summary, Status>>;
     async fn book_summary(
         &self,
         request: Request<proto::Empty>,
     ) -> Result<Response<Self::BookSummaryStream>, Status> {
       println!("Got a request from {:?}", request.remote_addr());
-      let output = async_stream::try_stream! {
-        let mut receiver = WATCHSTATE.read().await.1.clone();
-        while let Ok(_) = receiver.changed().await {
-          let aggregation = AGGREGATOR.read().await;
+      let (tx, rx) = mpsc::channel::<Result<proto::Summary, Status>>(100);
+      let agg = self.aggregator.clone();
+      let watcher = self.watcher.clone();
+      tokio::spawn(async move {
+        while let Ok(_) = watcher.read().await.clone().changed().await {
+          let aggregation = agg.read().await;
           let summary = aggregation.get_levels(10);
-          yield proto::Summary::from(summary);
+          let _ = tx.send(Ok(proto::Summary::from(summary))).await;
         }
-      };
-    Ok(Response::new(Box::pin(output) as Self::BookSummaryStream))
+      });
+      Ok(Response::new(ReceiverStream::new(rx)))
   } 
 }
 
@@ -68,16 +82,19 @@ impl BookStreamer {
     let (tx, mut rx) = mpsc::channel(100);
     let tx2 = tx.clone();
     let (exchange1, exchange2) = self.exchanges.clone().into_iter().collect_tuple().unwrap();
+    let aggregator = self.aggregator.clone();
+    let aggregator_ = self.aggregator.clone();
+    let (tx_w, rx_w)= watch::channel(false);
     match try_join!(
       tokio::spawn(async move { connect_exchange(exchange1.clone().0, exchange1.1.clone(), tx).await }),
       tokio::spawn(async move { connect_exchange(exchange2.clone().0, exchange2.1.clone(), tx2).await }),
       tokio::spawn(async move { 
-      while let Some(res) = rx.recv().await {
-        let mut aggr = AGGREGATOR.write().await;
-          aggr.update(res);
-          match WATCHSTATE.read().await.0.send(true) {
-            Err(e) => println!("{}", e),
-             _ => {}
+        while let Some(res) = rx.recv().await {
+          let mut aggregator_guard = aggregator_.write().await;
+            aggregator_guard.update(res);
+            match tx_w.send(true) {
+              Err(e) => println!("{}", e),
+              _ => {}
       }
      }
     }),
@@ -85,7 +102,7 @@ impl BookStreamer {
       let addr = "[::1]:50051".parse().unwrap();
       println!("Server listening on {}", addr);
       let _= Server::builder()
-        .add_service(OrderbookAggregatorServer::new(BookStreamerTonik {}))
+        .add_service(OrderbookAggregatorServer::new(BookStreamerTonik { aggregator, watcher: Arc::new(RwLock::new(rx_w)) }))
         .serve(addr)
         .await;
     })
