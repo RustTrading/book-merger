@@ -51,7 +51,8 @@ pub mod test {
   use tokio::{select, time, time::Duration};
   use serde_json::json;
   use crate::grpc_server;
-  #[tokio::test(flavor = "multi_thread")] 
+  #[tokio::test(flavor = "multi_thread")]
+  #[serial_test::serial]
     async fn mock_servers() {
       let exchanges = vec![
         (Exchange::Binance("ws://127.0.0.1:8080".to_owned()), None),
@@ -67,9 +68,11 @@ pub mod test {
             server("127.0.0.1:3030".to_owned()).await
         }) => {}
         _  = tokio::spawn(async move {
+          time::sleep(Duration::from_millis(2000)).await;
           grpc_server(exchanges).await
         }) => { }
         _  = tokio::spawn(async move {
+          time::sleep(Duration::from_millis(3000)).await;
           grpc_client().await
         }) => {}  
         () = &mut sleep => {
@@ -78,6 +81,7 @@ pub mod test {
     }
   }
     #[tokio::test(flavor = "multi_thread")]
+    #[serial_test::serial]
     async fn client_server() {
       let sleep = time::sleep(Duration::from_millis(10000));
       tokio::pin!(sleep);
@@ -97,6 +101,7 @@ pub mod test {
           grpc_server(exchanges).await
         }) => {}
         _ = tokio::spawn(async move {
+          time::sleep(Duration::from_millis(1000)).await;
           grpc_client().await
         }) => {}
         () = &mut sleep => {
