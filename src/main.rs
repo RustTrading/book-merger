@@ -47,10 +47,10 @@ async fn main() -> Result<(), Error> {
 
 #[cfg(test)]
 pub mod test {
-  use book_merger::{test::server, exchange_tools::Exchange, client::grpc_client};
-  use tokio::{select, time, time::Duration};
-  use serde_json::json;
+  use book_merger::{test::server, exchange_tools::Exchange, client::{grpc_client, error::Error}};
   use crate::grpc_server;
+  use serde_json::json;
+  use tokio::{select, time, time::Duration, task::JoinError};
   #[tokio::test(flavor = "multi_thread")]
   #[serial_test::serial]
     async fn mock_servers() {
@@ -60,33 +60,35 @@ pub mod test {
       ];
       let sleep = time::sleep(Duration::from_millis(10000));
       tokio::pin!(sleep);
-      select!{
-      _  = tokio::spawn(async move {
-            server("127.0.0.1:8080".to_owned()).await
-         }) => {}
-      _ = tokio::spawn(async move {
+      let res: Result<Result<(), Error>, JoinError>= select!{
+        Ok(Err(e))  = tokio::spawn(async move {
+          server("127.0.0.1:8080".to_owned()).await
+         }) => { Ok(Err(e)) }
+        Ok(Err(e)) = tokio::spawn(async move {
             server("127.0.0.1:3030".to_owned()).await
-        }) => {}
-        _  = tokio::spawn(async move {
+        }) => { Ok(Err(e)) }
+        Ok(Err(e)) = tokio::spawn(async move {
           time::sleep(Duration::from_millis(2000)).await;
           grpc_server(exchanges).await
-        }) => { }
-        _  = tokio::spawn(async move {
+        }) => { Ok(Err(e)) }
+        Ok(Err(e))  = tokio::spawn(async move {
           time::sleep(Duration::from_millis(3000)).await;
           grpc_client().await
-        }) => {}  
+        }) => { Ok(Err(e)) }  
         () = &mut sleep => {
           println!("timer elapsed");
+          Ok(Ok(()))
         }
-    }
+    };
+    assert!(res.unwrap().is_ok());
   }
     #[tokio::test(flavor = "multi_thread")]
     #[serial_test::serial]
     async fn client_server() {
       let sleep = time::sleep(Duration::from_millis(10000));
       tokio::pin!(sleep);
-      select!{
-        _ = tokio::spawn(async move {
+      let res: Result<Result<(), Error>, JoinError> = select!{
+        Ok(Err(e)) = tokio::spawn(async move {
           let subscribe_bitstamp: String = json!({
             "event": "bts:subscribe",
             "data": {
@@ -99,14 +101,16 @@ pub mod test {
             (Exchange::Binance(binance), None),
             (Exchange::Bitstamp(bitstamp), Some(subscribe_bitstamp))];
           grpc_server(exchanges).await
-        }) => {}
-        _ = tokio::spawn(async move {
+        }) => { Ok(Err(e)) }
+        Ok(Err(e)) = tokio::spawn(async move {
           time::sleep(Duration::from_millis(1000)).await;
           grpc_client().await
-        }) => {}
+        }) => {  Ok(Err(e)) }
         () = &mut sleep => {
           println!("timer elapsed");
+          Ok(Ok(()))
         }
-      }
+      };
+      assert!(res.unwrap().is_ok());
     }
 }

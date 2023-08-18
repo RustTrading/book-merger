@@ -48,6 +48,12 @@ pub mod error {
       Self::BadAddr(e)
     }
   }
+
+  impl From<tokio::task::JoinError> for Error {
+    fn from(e:tokio::task::JoinError) -> Self {
+      Self::JoinError(e)
+    }
+  }
 }
 
 #[allow(non_snake_case)]
