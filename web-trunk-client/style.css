@@ -1,0 +1,13 @@
+table, th, td {
+  border: 1px solid black;
+}
+
+#Ask {background-color: lightcoral;}
+#Bid {background-color: lightgreen;}
+
+.orderInfo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  box-sizing:border-box;
+  width:100%;
+}

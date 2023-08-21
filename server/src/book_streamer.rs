@@ -3,11 +3,14 @@ use crate::client::error::Error;
 use crate::exchange_tools::{AggregatedBook, Exchange, Summary, Level};
 use futures::try_join;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock, watch};
-use tokio_stream::wrappers::ReceiverStream;
-use tonic::{transport::Server, Request, Response, Status};
 use num_traits::cast::ToPrimitive;
 use proto::orderbook_aggregator_server::{OrderbookAggregatorServer, OrderbookAggregator};
+use std::time::Duration;
+use tokio::sync::{mpsc, RwLock, watch};
+use tokio_stream::wrappers::ReceiverStream;
+use tonic_web::GrpcWebLayer;
+use tonic::{transport::Server, Request, Response, Status};
+use tower_http::cors::{Any, CorsLayer};
 
 #[allow(non_snake_case)]
 mod proto {
@@ -91,20 +94,28 @@ impl BookStreamer {
       tokio::spawn(async move { 
         while let Some(res) = rx.recv().await {
           let mut aggregator_guard = aggregator_.write().await;
-            aggregator_guard.update(res);
-            match tx_w.send(true) {
-              Err(e) => println!("{}", e),
-              _ => {}
-      }
-     }
+          aggregator_guard.update(res);
+          match tx_w.send(true) {
+            Err(e) => println!("{}", e),
+            _ => {}
+          }
+        }
     }),
     tokio::spawn(async move { 
       let addr = "[::1]:50051".parse().unwrap();
       println!("Server listening on {}", addr);
-      let _= Server::builder()
-        .add_service(OrderbookAggregatorServer::new(BookStreamerTonik { aggregator, watcher: Arc::new(RwLock::new(rx_w)) }))
-        .serve(addr)
-        .await;
+      Server::builder()
+      .accept_http1(true)
+      .layer(
+          CorsLayer::new()
+          .allow_headers(Any)
+          .allow_origin(["http://localhost:8080".parse().unwrap()])
+          .expose_headers(Any)
+      )
+      .layer(GrpcWebLayer::new())
+      .add_service(OrderbookAggregatorServer::new(BookStreamerTonik { aggregator, watcher: Arc::new(RwLock::new(rx_w)) }))
+      .serve(addr)
+      .await
     })
   ) {
      Ok(_) => Ok(()),
