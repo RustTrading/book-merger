@@ -1,13 +1,17 @@
-use serde::{Serialize, Deserialize};
-use tokio_tungstenite::tungstenite::protocol::Message;
+use crate::client::error::Error;
+use num_traits::cast::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use serde::{Serialize, Deserialize};
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+use tokio::sync::RwLock;
+use tokio_tungstenite::tungstenite::protocol::Message;
 
 pub const BITSTAMP_WSS: &str = "wss://ws.bitstamp.net";
-pub const BINANCE_WSS: &str = "wss://stream.binance.com:9443/ws/{}@depth20@100ms";
+pub const BINANCE_WSS: &str = "wss://stream.binance.com:9443/ws/{}@depth10@100ms";
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OrderBook {
@@ -63,14 +67,14 @@ impl AggregatedBook {
     .map(|val| val.1.iter()
     .map(|val2| Level { exchange: val2.0.clone(), price: *val.0, amount: *val2.1 }).collect::<Vec<Level>>())
     .flatten()
-    .rev()
+    .rev().filter(|val| val.amount.to_f64().unwrap() > 0.0)
     .take(level_num)
     .collect();
     let asks = self.asks.iter()
     .map(|val| val.1.iter()
     .map(|val2| Level { exchange: val2.0.clone(), price: *val.0, amount: *val2.1 })
     .collect::<Vec<Level>>())
-    .flatten()
+    .flatten().filter(|val| val.amount.to_f64().unwrap() > 0.0)
     .take(level_num)
     .collect();
     Summary { asks, bids, spread: self.spread }
@@ -128,7 +132,7 @@ impl ToString for Exchange {
 
 use crate::{binance, bitstamp};
 
-pub fn parse_book(exchange: Exchange, message: Message) -> Result<OrderBook, serde_json::Error> {
+pub async fn parse_book(exchange: Exchange, message: Message, prev_update_state: Arc<RwLock<(i64, i64)>>) -> Result<OrderBook, Error> {
   //println!("received message: {:?}", message);
   let message_str =  message.to_text().unwrap();
   match exchange {
@@ -136,14 +140,19 @@ pub fn parse_book(exchange: Exchange, message: Message) -> Result<OrderBook, ser
       let order_book: Result<bitstamp::Event,_> = serde_json::from_str(message_str);
       match order_book {
         Ok(val) => { 
-          Ok(OrderBook {
-            exchange: String::from("bitstamp"),
-            asks: val.data.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
-            bids: val.data.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
-          })
+          let update_state = val.data.timestamp.to_i64().unwrap();
+          if update_state >= prev_update_state.read().await.0 + 1 {
+            prev_update_state.write().await.0 = update_state;
+            return Ok(OrderBook {
+              exchange: String::from("bitstamp"),
+              asks: val.data.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
+              bids: val.data.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("bitstamp"), price, amount}).collect(),
+            });
+          } 
+          Err(Error::OutdatedUpdate())
         },
         Err(e) => { 
-          Err(e)
+          Err(e.into())
         }
       }
     },
@@ -151,14 +160,19 @@ pub fn parse_book(exchange: Exchange, message: Message) -> Result<OrderBook, ser
       let order_book: Result<binance::OrderBook, _> = serde_json::from_str(message_str);
       match order_book {
         Ok(val) => { 
-          Ok(OrderBook {
+          let update_state = val.lastUpdateId.to_i64().unwrap();
+          if update_state >= prev_update_state.read().await.1 + 1 {
+            prev_update_state.write().await.1 = update_state;
+           return Ok(OrderBook {
             exchange: String::from("binance"),
             asks: val.asks.into_iter().map(|(price, amount)| Level { exchange: String::from("binance"), price, amount}).collect(),
             bids: val.bids.into_iter().map(|(price, amount)| Level { exchange: String::from("binance"), price, amount}).collect(),
-          })
+          });
+          }
+          Err(Error::OutdatedUpdate())
         },
         Err(e) =>  { 
-          Err(e)
+          Err(e.into())
         },
       }
     },
@@ -173,7 +187,7 @@ pub fn parse_book(exchange: Exchange, message: Message) -> Result<OrderBook, ser
           })
         },
         Err(e) =>  { 
-          Err(e)
+          Err(e.into())
         },
       }
     }

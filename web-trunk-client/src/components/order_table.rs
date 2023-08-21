@@ -8,6 +8,25 @@ pub struct OrderTableProps {
   pub headers: Vec<String>,
 }
 
+#[derive(Clone, PartialEq, Properties)]
+pub struct SpreadViewProps {
+  pub id: String,
+  pub value: String,
+}
+
+#[function_component(SpreadView)]
+pub fn spread_view(props: &SpreadViewProps) -> Html {
+  let SpreadViewProps {
+    id,
+    value
+  } = props;
+   html! {
+    <label id = {id.to_owned()}>
+    { value }
+    </label>
+   }
+}
+
 #[function_component(OrderTableView)]
 pub fn order_table(props: &OrderTableProps) -> Html {
   let OrderTableProps {

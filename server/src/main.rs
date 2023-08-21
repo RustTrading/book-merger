@@ -1,9 +1,9 @@
 
-use book_merger::exchange_tools::{BINANCE_WSS, BITSTAMP_WSS, Exchange};
 use book_merger::book_streamer::BookStreamer;
-use serde_json::json;
 use book_merger::client::error::Error;
+use book_merger::exchange_tools::{BINANCE_WSS, BITSTAMP_WSS, Exchange};
 use clap::{Arg, App};
+use serde_json::json;
 
 async fn grpc_server(exchanges: Vec<(Exchange, Option<String>)>) -> Result<(), Error> {
   let mut worker = BookStreamer::new(exchanges);

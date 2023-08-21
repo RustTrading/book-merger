@@ -12,6 +12,7 @@ use crate::components::{
   WorkerOutput, 
   WorkerRequest,
   OrderTableView,
+  SpreadView
 };
 
 use yew_agent::Bridged;
@@ -22,6 +23,13 @@ pub enum Msg {
 }
 pub struct OrderWeb {
   _update_orderbook_interval: Interval,
+ }
+
+ fn update_spread(spread: f64) ->  Result<(), JsValue> {
+  let document = web_sys::window().unwrap().document().unwrap();
+  let spread_field = document.get_element_by_id("spread_value").unwrap();
+  spread_field.first_child().unwrap().set_text_content(Some(&spread.to_string()));
+  Ok(())
  }
 
  fn update_table(table_id: &str, levels: &Vec<Level>) -> Result<(), JsValue> {
@@ -96,20 +104,25 @@ pub struct OrderWeb {
   }
 
   fn view(&self, _ctx: &Context<Self>) -> Html {   
+    
     html! {
-      <dev class="orderInfo">
-      <OrderTableView id = {"Bid"} headers = {
-        vec![
-          "price".to_owned(),
-          "amount".to_owned(),
-          "exchange".to_owned() 
-        ]} />
-      <OrderTableView id = {"Ask"}  headers = {
-        vec![
-          "price".to_owned(),
-          "amount".to_owned(),
-          "exchange".to_owned() 
-        ]}/>
+      <dev>
+        <SpreadView id = {"spread_label"}  value = {"Spread: "}/>
+        <SpreadView id = {"spread_value"}  value = {"0"}/>
+        <dev class="orderInfo">
+        <OrderTableView id = {"Bid"} headers = {
+          vec![
+            "price".to_owned(),
+            "amount".to_owned(),
+            "exchange".to_owned() 
+          ]} />
+        <OrderTableView id = {"Ask"} headers = {
+          vec![
+            "price".to_owned(),
+            "amount".to_owned(),
+            "exchange".to_owned() 
+          ]}/>
+        </dev>
       </dev>
     }
   }
@@ -125,6 +138,7 @@ pub struct OrderWeb {
          if let Some(latest) = response.book.last() {
           let _ = update_table("Ask", &latest.asks);
           let _= update_table("Bid", &latest.bids);
+          let _ = update_spread(latest.spread);
          }         
         true
     },

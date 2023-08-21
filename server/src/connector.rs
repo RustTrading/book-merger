@@ -1,6 +1,7 @@
 use crate::exchange_tools::{Exchange, parse_book, OrderBook};
 use futures_util::{StreamExt, SinkExt};
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, tungstenite::error::Error};
 use url::Url;
 
@@ -22,10 +23,10 @@ pub async fn connect_exchange(
       Err(e) => println!("{:?}", e)
     };
   }  
+  let update_states : Arc<RwLock<(i64, i64)>> = Arc::new(RwLock::new((0, 0)));
   let read_future = input_stream.for_each(|message| async {
-    //println!("{:?}", message);
     if let Ok(body) = message {
-      if let Ok(order_book) = parse_book(exchange.clone(), body) {
+      if let Ok(order_book) = parse_book(exchange.clone(), body, update_states.clone()).await {
         let _ = tx.send(order_book).await;
       }
     }

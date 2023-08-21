@@ -11,6 +11,7 @@ pub mod error {
     JoinError(tokio::task::JoinError),
     NotImplemented(),
     Status(tonic::Status),
+    OutdatedUpdate(),
   }
 
   impl From<tonic::Status> for Error {
