@@ -9,3 +9,6 @@ could be made any pair.
 the grpc client is: 
 
 ./book-merger-client
+
+the web client localhost:8080:
+cd ./web-trunk-client && trunk serve 
