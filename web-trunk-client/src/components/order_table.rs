@@ -32,6 +32,7 @@ pub fn order_table(props: &OrderTableProps) -> Html {
     subheader.add_child(vtext.into());
     vtr.add_child(subheader.into());
   }
+  thead.add_child(vtr.into());
   table.add_child(thead.into());
   table.add_child(tbody.into());
   table.into() 

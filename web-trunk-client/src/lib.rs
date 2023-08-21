@@ -20,7 +20,7 @@ pub enum Msg {
   Redraw,
   WorkerMsg(WorkerOutput),
 }
-pub struct Plotters {
+pub struct OrderWeb {
   _update_orderbook_interval: Interval,
  }
 
@@ -71,7 +71,7 @@ pub struct Plotters {
   Ok(())
  }
 
-  impl Component for Plotters {
+  impl Component for OrderWeb {
 
   type Message = Msg;
   type Properties = ();
@@ -90,7 +90,7 @@ pub struct Plotters {
         })
       )
     };
-    Plotters {
+    OrderWeb {
       _update_orderbook_interval,
     }       
   }
