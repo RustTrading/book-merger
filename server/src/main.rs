@@ -1,12 +1,11 @@
-
 use book_merger::book_streamer::BookStreamer;
 use book_merger::client::error::Error;
 use book_merger::exchange_tools::{BINANCE_WSS, BITSTAMP_WSS, Exchange};
 use clap::{Arg, App};
 use serde_json::json;
 
-async fn grpc_server(exchanges: Vec<(Exchange, Option<String>)>) -> Result<(), Error> {
-  let mut worker = BookStreamer::new(exchanges);
+async fn grpc_server(exchanges: Vec<(Exchange, Option<String>)>, currency_pair: String) -> Result<(), Error> {
+  let mut worker = BookStreamer::new(exchanges, currency_pair);
   worker.run().await
 }
 
@@ -37,12 +36,12 @@ async fn main() -> Result<(), Error> {
    }
   }
 
-  let subscribe_ethbtc: String = frmt.replace("{}", currencies);
+  let subscribe_ethbtc: String = frmt.replace("{}", &currencies.to_ascii_lowercase());
   let binance_wss_currency = BINANCE_WSS.replace("{}", currencies);
   let exchanges = vec![
     (Exchange::Binance(binance_wss_currency), None),
     (Exchange::Bitstamp(BITSTAMP_WSS.to_owned()), Some(subscribe_ethbtc))];
-  grpc_server(exchanges).await
+  grpc_server(exchanges, String::from(currencies)).await
 }
 
 #[cfg(test)]
@@ -69,7 +68,7 @@ pub mod test {
         }) => { Ok(Err(e)) }
         Ok(Err(e)) = tokio::spawn(async move {
           time::sleep(Duration::from_millis(2000)).await;
-          grpc_server(exchanges).await
+          grpc_server(exchanges, String::from("ethbtc")).await
         }) => { Ok(Err(e)) }
         Ok(Err(e))  = tokio::spawn(async move {
           time::sleep(Duration::from_millis(3000)).await;
@@ -96,11 +95,11 @@ pub mod test {
             }
           }).to_string();       
           let bitstamp: String = "wss://ws.bitstamp.net".to_owned();
-          let binance: String = "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms".to_owned();
+          let binance: String =  "wss://stream.binance.com:9443/ws/ethbtc@depth20@100ms".to_owned();
           let exchanges = vec![
             (Exchange::Binance(binance), None),
             (Exchange::Bitstamp(bitstamp), Some(subscribe_bitstamp))];
-          grpc_server(exchanges).await
+          grpc_server(exchanges, String::from("ltcbtc")).await
         }) => { Ok(Err(e)) }
         Ok(Err(e)) = tokio::spawn(async move {
           time::sleep(Duration::from_millis(1000)).await;

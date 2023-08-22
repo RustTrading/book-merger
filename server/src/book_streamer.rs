@@ -27,10 +27,10 @@ pub struct BookStreamer {
 }
 
 impl BookStreamer {
-  pub fn new(exchanges: Vec<(Exchange, Option<String>)>) -> Self {
+  pub fn new(exchanges: Vec<(Exchange, Option<String>)>, currency_pair: String) -> Self {
     Self {
       exchanges,
-      aggregator: Arc::new(RwLock::new(AggregatedBook::new())),
+      aggregator: Arc::new(RwLock::new(AggregatedBook::new(currency_pair))),
     }
   }
 }
@@ -86,15 +86,17 @@ impl BookStreamer {
     let (exchange1, exchange2) = self.exchanges.clone().into_iter().collect_tuple().unwrap();
     let aggregator = self.aggregator.clone();
     let aggregator_ = self.aggregator.clone();
+    let aggregator__ = self.aggregator.clone();
+    let aggregator___ = self.aggregator.clone();
     let (tx_w, rx_w)= watch::channel(false);
     match try_join!(
-      tokio::spawn(async move { connect_exchange(exchange1.clone().0, exchange1.1.clone(), tx).await }),
-      tokio::spawn(async move { connect_exchange(exchange2.clone().0, exchange2.1.clone(), tx2).await }),
+      tokio::spawn(async move { connect_exchange(exchange1.clone().0, exchange1.1.clone(), tx, aggregator__).await }),
+      tokio::spawn(async move { connect_exchange(exchange2.clone().0, exchange2.1.clone(), tx2, aggregator___).await }),
       tokio::spawn(async move { 
         while let Some(res) = rx.recv().await {
           let mut aggregator_guard = aggregator_.write().await;
-          aggregator_guard.update(res);
-          match tx_w.send(true) {
+          aggregator_guard.update(res).await;
+           match tx_w.send(true) {
             Err(e) => println!("{}", e),
             _ => {}
           }

@@ -92,7 +92,7 @@ pub struct OrderWeb {
     };
     let _update_orderbook_interval = {
       let mut worker = Worker::bridge(Rc::new(update_interval_cb));
-      Interval::new(1, move ||
+      Interval::new(10, move ||
         worker.send(WorkerInput {
           req: WorkerRequest::GetGRPC,
         })
