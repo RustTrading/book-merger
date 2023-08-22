@@ -23,61 +23,41 @@ pub enum Msg {
 }
 pub struct OrderWeb {
   _update_orderbook_interval: Interval,
+  ask_table: Vec<Vec<NodeRef>>,
+  bid_table: Vec<Vec<NodeRef>>,
+  spread: NodeRef,
+  label: NodeRef,
  }
 
- fn update_spread(spread: f64) ->  Result<(), JsValue> {
-  let document = web_sys::window().unwrap().document().unwrap();
-  let spread_field = document.get_element_by_id("spread_value").unwrap();
-  spread_field.first_child().unwrap().set_text_content(Some(&spread.to_string()));
-  Ok(())
- }
+enum OrderBookSide {
+  Ask,
+  Bid,
+}
 
- fn update_table(table_id: &str, levels: &Vec<Level>) -> Result<(), JsValue> {
-  let document = web_sys::window().unwrap().document().unwrap();
-  let table = document.get_element_by_id(table_id).unwrap();
-  
-  let tbody = table.last_element_child().unwrap();
-  let rows = tbody.children();
-  
-  //log::info!("rows: {}", rows.length());
-
-  let mut row_idx = 0;
-
-  let level_num = levels.len() as u32;
-  let current_table_len = tbody.child_element_count();
+impl OrderWeb {
+  fn update_spread(&self, spread: f64) ->  Result<(), JsValue> {
+    let selement = self.spread.cast::<web_sys::Element>().unwrap();
+    selement.set_text_content(Some(&spread.to_string()));
+    Ok(())
+  }
     
-  //log::info!("level_num: {}, current_child: {}", level_num, current_table_len);
-
-  if level_num < current_table_len {
-    let extra_children = tbody.child_nodes();
-    for idx in level_num..current_table_len {
-      tbody.remove_child(&extra_children.get(idx).unwrap())?;
+  fn update_table(&self, levels: &Vec<Level>, side: OrderBookSide) -> Result<(), JsValue> {
+    let table = match side {
+        OrderBookSide::Ask => &self.ask_table,
+        OrderBookSide::Bid => &self.bid_table,
+    };
+    let mut row_idx = 0;
+    for level in levels {
+      let properties = vec![level.price.to_string(), level.amount.to_string(), level.exchange.clone()]; 
+      for column_idx in 0..3 {
+        let td = (table[row_idx])[column_idx].cast::<web_sys::Element>().unwrap();
+        td.set_text_content(Some(&properties[column_idx]));
+      } 
+      row_idx +=1;
+    }
+      Ok(())
     }
   }
-  for level in levels {
-    let properties = vec![level.price.to_string(), level.amount.to_string(), level.exchange.clone()]; 
-    if row_idx < current_table_len {
-      if let Some(row) = rows.get_with_index(row_idx) {
-        let items = row.children();
-        for idx in 0..items.length() {
-          let td = items.get_with_index(idx).unwrap();
-          td.set_text_content(Some(&properties[idx as usize]));
-        }
-        row_idx +=1;
-        continue;
-      }
-    } 
-    let row = document.create_element("tr").unwrap();
-    for data in &properties {
-      let item = document.create_element("td").unwrap();
-      let value= document.create_text_node(data);
-      item.append_child(&value)?;
-      row.append_child(&item)?;
-    }
-    tbody.append_child(&row)?;
-  }
-  Ok(())
- }
 
   impl Component for OrderWeb {
 
@@ -86,6 +66,16 @@ pub struct OrderWeb {
 
   fn create(ctx: &Context<Self>) -> Self {
     log::info!("Creating Yew-Plotters View");
+    let mut ask_table = Vec::new(); 
+    let mut bid_table = Vec::new();
+    for _ in 0..20 {
+      let vec1 = vec![NodeRef::default(), NodeRef::default(), NodeRef::default()];
+      let vec2 = vec![NodeRef::default(), NodeRef::default(), NodeRef::default()];
+      ask_table.push(vec1);
+      bid_table.push(vec2);
+    }
+    let spread = NodeRef::default();
+    let label = NodeRef::default();
     let update_interval_cb = {
       let link = ctx.link().clone();
       move |e| link.send_message(Self::Message::AgentReady(e))
@@ -99,24 +89,27 @@ pub struct OrderWeb {
       )
     };
     OrderWeb {
+      spread,
+      label,
+      ask_table,
+      bid_table,
       _update_orderbook_interval,
     }       
   }
 
   fn view(&self, _ctx: &Context<Self>) -> Html {   
-    
     html! {
       <dev>
-        <SpreadView id = {"spread_label"}  value = {"Spread: "}/>
-        <SpreadView id = {"spread_value"}  value = {"0"}/>
+        <SpreadView id = {"spread_label"}  input_ref = {self.label.clone()} value = {"Spread: "}/>
+        <SpreadView id = {"spread_value"}  input_ref = {self.spread.clone()} value = {"0"}/>
         <dev class="orderInfo">
-        <OrderTableView id = {"Bid"} headers = {
+        <OrderTableView id = {"Bid"} cells = {self.bid_table.clone()} headers = {
           vec![
             "price".to_owned(),
             "amount".to_owned(),
             "exchange".to_owned() 
           ]} />
-        <OrderTableView id = {"Ask"} headers = {
+        <OrderTableView id = {"Ask"} cells = {self.ask_table.clone()} headers = {
           vec![
             "price".to_owned(),
             "amount".to_owned(),
@@ -136,9 +129,9 @@ pub struct OrderWeb {
       Self::Message::AgentReady(response) => {
          //log::info!("agent response: {:?}", response);
          if let Some(latest) = response.book.last() {
-          let _ = update_table("Ask", &latest.asks);
-          let _= update_table("Bid", &latest.bids);
-          let _ = update_spread(latest.spread);
+          let _ = self.update_table(&latest.asks, OrderBookSide::Ask);
+          let _= self.update_table(&latest.bids, OrderBookSide::Bid);
+          let _ = self.update_spread(latest.spread);
          }         
         true
     },
